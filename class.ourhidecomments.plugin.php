@@ -49,8 +49,18 @@ class ExamplePlugin extends Gdn_Plugin
      */
     public function Base_Render_Before($Sender)
     {
-        $Sender->AddCssFile($this->GetResource('design/ourhidecomments.css', FALSE, FALSE));
-        $Sender->AddJsFile($this->GetResource('js/ourhidecomments.js', FALSE, FALSE));
+//        $Sender->AddCssFile($this->GetResource('design/ourhidecomments.css', FALSE, FALSE));
+//        $Sender->AddJsFile($this->GetResource('js/ourhidecomments.js', FALSE, FALSE));
+    }
+
+    /**
+     * Because code ahead don't working
+     * @param $Sender
+     */
+    public function DiscussionController_Render_Before(&$Sender)
+    {
+        $Sender->AddJsFile('ourhidecomments.js', "plugins/OurHideComments/js");
+        $Sender->AddCssFile('ourhidecomments.css', "plugins/OurHideComments/design");
     }
 
     /**
@@ -150,6 +160,146 @@ class ExamplePlugin extends Gdn_Plugin
     }
 
     /**
+     * @param $Sender DiscussionController
+     * @return bool|void
+     */
+    public function DiscussionController_HideComment_Create($Sender)
+    {
+        // TODO write your code here.
+        if (sizeof($Arguments = $Sender->RequestArgs) != 1)
+            return;
+        list($CommentID) = $Arguments;
+        $isHidden = $this->Hidden($CommentID);
+        if (!$isHidden) {
+            Gdn::SQL()
+                ->insert("HiddenComment", array('CommentID' => $CommentID));
+            $Sender->JsonTarget("#Comment_{$CommentID}", 'HiddenComment', 'AddClass'); // Add the class
+            $Sender->JsonTarget("#Comment_{$CommentID}", 'updateHidden', 'Callback');
+        } else {
+            Gdn::SQL()
+                ->delete('HiddenComment', array('CommentID' => $CommentID));
+            $Sender->JsonTarget("#Comment_{$CommentID}", 'HiddenComment', 'RemoveClass'); // Remove the class
+            $Sender->JsonTarget("#Comment_{$CommentID}", 'updateShown', 'Callback');
+        }
+//        return true;
+        $Sender->Render('Blank', 'Utility', 'Dashboard');
+    }
+
+    /**
+     * @param $CommentID
+     * @return bool
+     */
+    private function Hidden($CommentID)
+    {
+        $Result = Gdn::SQL()
+            ->select("CommentId")
+            ->from("HiddenComment")
+            ->where('CommentID', $CommentID)
+            ->get()
+            ->firstRow();
+        if ($Result) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     *
+     * Apply Hidden preferences to comments.
+     * Functionality derived from Ignore plugin by Tim Gunter
+     *
+     * @param mixed $Sender The Sender data structure.
+     */
+    public function DiscussionController_BeforeCommentDisplay_Handler($Sender)
+    {
+        // Signed-in users only
+        $str = 'HiddenCommentHide';
+        $userID = Gdn::Session()->UserID;
+        if ($userID) {
+            if (Gdn::UserModel()->getID($userID)->Admin) {
+                $str = 'HiddenCommentAdmin';
+            }
+        }
+        // Get our DiscussionID and our CommentID
+        $DiscussionID = $Sender->EventArguments['Discussion']->DiscussionID;
+        $CommentID = $Sender->EventArguments['Comment']->CommentID;
+        if ($this->Hidden($CommentID)) {
+            $Classes = explode(" ", $Sender->EventArguments['CssClass']);
+            $Classes[] = 'HiddenComment';
+            $Classes[] = $str;
+            $Classes = array_fill_keys($Classes, NULL);
+            $Classes = implode(' ', array_keys($Classes));
+            $Sender->EventArguments['CssClass'] = $Classes;
+        }
+    }
+
+    /**
+     * Insert the Hide option in the comment options menu.
+     * @param mixed $Sender The Sender data structure
+     * @param mixed $Args The Event Arguments.
+     */
+    public function DiscussionController_CommentOptions_Handler($Sender, $Args)
+    {
+        if (!Gdn::Session()->UserID)
+            return;
+        $CommentID = $Args['Comment']->CommentID;
+        // Check to see if the user can hide this comment. If it's already hidden, allow them to unhide it.
+//        if (!$this->CanHide($DiscussionID, $CommentID) && $this->Hidden($DiscussionID, $CommentID) === false)
+//            return;
+        if ($this->canHide())
+            $this->MenuOptions($Args['CommentOptions'], $CommentID);
+    }
+
+    /**
+     * @return bool
+     */
+    private function canHide()
+    {
+        if (!($UserID = Gdn::Session()->UserID)) {
+            return false;
+        };
+        // Otherwise Admins can hide whatever they want
+        if (Gdn::UserModel()->GetID($UserID)->Admin)
+            return true;
+//        $Roles = Gdn::UserModel()->getRoles($UserID);
+        return true;
+    }
+
+    /**
+     * Generate a menu option for Hiding
+     * @param mixed $Options The array of options to insert this option into.
+     * @param mixed $CommentID The comment ID inside the discussion, or NULL if the target is the discussion.
+     * @param mixed $Key Array key to use for this specific option.
+     * @internal param mixed $DiscussionID The Discussion ID of the discussion the action takes place in.
+     */
+    public function MenuOptions(&$Options, $CommentID, $Key = NULL)
+    {
+        // Set up our label to show current state of Hide preference.
+        $Label = "Hide ";
+        if ($this->Hidden($CommentID))
+            $Label = "Unhide ";
+
+        $Label .= "Comment";
+
+        // Build our CSS Class name based on the action
+        $CssClass = 'Hide' . (($CommentID == NULL) ? "Discussion" : "Comment");
+
+        // Create a unique CSS Class for live page updating.
+        $UniqueCss = $CssClass . '_' . $CommentID;
+
+        // URL of our Ajax request. Use 'd' as a URL-safe alternative for Null
+        $Url = "/discussion/hidecomment/" . $CommentID;
+
+        // Set up our option entry
+        $Options[$Key] = array(
+            'Label' => T($Label),
+            'Url' => $Url,
+            'Class' => $CssClass . ' Hijack ' . $UniqueCss
+        );
+    }
+
+    /**
      * Plugin setup
      *
      * This method is fired only once, immediately after the plugin has been enabled in the /plugins/ screen,
@@ -164,7 +314,7 @@ class ExamplePlugin extends Gdn_Plugin
 //        SaveToConfig('Plugin.OurHideComments.RenderCondition', "all");
 
 
-        Gdn::Structure()->Table('HiddenComments')->primaryKey('CommentID')->Set(FALSE, FALSE);
+        Gdn::Structure()->Table('HiddenComment')->primaryKey('CommentID')->Set(FALSE, FALSE);
         /*
         // Create table GDN_Example, if it doesn't already exist
         Gdn::Structure()
