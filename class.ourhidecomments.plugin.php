@@ -217,7 +217,7 @@ class OurHideCommentsPlugin extends Gdn_Plugin
         $HiddenClass = 'HiddenCommentHide';
         $userID = Gdn::Session()->UserID;
         if ($userID) {
-            if (Gdn::UserModel()->getID($userID)->Admin) {
+            if ($this->canHide()) {
                 $HiddenClass = 'HiddenCommentAdmin';
             }
         }
