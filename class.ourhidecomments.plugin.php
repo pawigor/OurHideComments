@@ -214,22 +214,18 @@ class OurHideCommentsPlugin extends Gdn_Plugin
     public function DiscussionController_BeforeCommentDisplay_Handler($Sender)
     {
         // Signed-in users only
-        $str = 'HiddenCommentHide';
+        $HiddenClass = 'HiddenCommentHide';
         $userID = Gdn::Session()->UserID;
         if ($userID) {
             if (Gdn::UserModel()->getID($userID)->Admin) {
-                $str = 'HiddenCommentAdmin';
+                $HiddenClass = 'HiddenCommentAdmin';
             }
-        } else {
-            return;
         }
-        // Get our DiscussionID and our CommentID
-        $DiscussionID = $Sender->EventArguments['Discussion']->DiscussionID;
-        $CommentID = $Sender->EventArguments['Comment']->CommentID;
-        if ($this->Hidden($CommentID)) {
+
+        if ($this->Hidden($Sender->EventArguments['Comment']->CommentID)) {
             $Classes = explode(" ", $Sender->EventArguments['CssClass']);
             $Classes[] = 'HiddenComment';
-            $Classes[] = $str;
+            $Classes[] = $HiddenClass;
             $Classes = array_fill_keys($Classes, NULL);
             $Classes = implode(' ', array_keys($Classes));
             $Sender->EventArguments['CssClass'] = $Classes;
