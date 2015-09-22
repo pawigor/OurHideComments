@@ -23,7 +23,7 @@ $PluginInfo['OurHideComments'] = array(
     'AuthorUrl' => 'http://www.vanillaforums.com'
 );
 
-class ExamplePlugin extends Gdn_Plugin
+class OurHideCommentsPlugin extends Gdn_Plugin
 {
 
     /**
@@ -261,12 +261,7 @@ class ExamplePlugin extends Gdn_Plugin
         if (!($UserID = Gdn::Session()->UserID)) {
             return false;
         };
-        // Otherwise Admins can hide whatever they want
-        if (Gdn::UserModel()->GetID($UserID)->Admin)
-            return true;
-        else
-//        $Roles = Gdn::UserModel()->getRoles($UserID);
-            return false;
+        return Gdn::UserModel()->checkPermission($UserID, 'Conversations.Moderation.Manage');
     }
 
     /**
