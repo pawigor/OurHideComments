@@ -220,6 +220,8 @@ class ExamplePlugin extends Gdn_Plugin
             if (Gdn::UserModel()->getID($userID)->Admin) {
                 $str = 'HiddenCommentAdmin';
             }
+        } else {
+            return;
         }
         // Get our DiscussionID and our CommentID
         $DiscussionID = $Sender->EventArguments['Discussion']->DiscussionID;
@@ -262,8 +264,9 @@ class ExamplePlugin extends Gdn_Plugin
         // Otherwise Admins can hide whatever they want
         if (Gdn::UserModel()->GetID($UserID)->Admin)
             return true;
+        else
 //        $Roles = Gdn::UserModel()->getRoles($UserID);
-        return true;
+            return false;
     }
 
     /**
