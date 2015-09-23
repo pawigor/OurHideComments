@@ -7,6 +7,6 @@ li.HiddenComment {
 }
 
 .HiddenComment.HiddenCommentAdmin {
-    color: red;
+    color: #BBBBBB;
     text-decoration: line-through;
 }

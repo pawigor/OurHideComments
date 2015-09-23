@@ -216,13 +216,13 @@ class OurHideCommentsPlugin extends Gdn_Plugin
         // Signed-in users only
         $HiddenClass = 'HiddenCommentHide';
         $userID = Gdn::Session()->UserID;
+        $Comment = $Sender->EventArguments['Comment'];
         if ($userID) {
-            if ($this->canHide()) {
+            if ($this->canHide() || $Comment->InsertUserID == $userID) {
                 $HiddenClass = 'HiddenCommentAdmin';
             }
         }
-
-        if ($this->Hidden($Sender->EventArguments['Comment']->CommentID)) {
+        if ($this->Hidden($Comment->CommentID)) {
             $Classes = explode(" ", $Sender->EventArguments['CssClass']);
             $Classes[] = 'HiddenComment';
             $Classes[] = $HiddenClass;
@@ -230,6 +230,17 @@ class OurHideCommentsPlugin extends Gdn_Plugin
             $Classes = implode(' ', array_keys($Classes));
             $Sender->EventArguments['CssClass'] = $Classes;
         }
+    }
+
+    /**
+     * @return bool
+     */
+    private function canHide()
+    {
+        if (!($UserID = Gdn::Session()->UserID)) {
+            return false;
+        };
+        return Gdn::UserModel()->checkPermission($UserID, 'Conversations.Moderation.Manage');
     }
 
     /**
@@ -247,17 +258,6 @@ class OurHideCommentsPlugin extends Gdn_Plugin
 //            return;
         if ($this->canHide())
             $this->MenuOptions($Args['CommentOptions'], $CommentID);
-    }
-
-    /**
-     * @return bool
-     */
-    private function canHide()
-    {
-        if (!($UserID = Gdn::Session()->UserID)) {
-            return false;
-        };
-        return Gdn::UserModel()->checkPermission($UserID, 'Conversations.Moderation.Manage');
     }
 
     /**
